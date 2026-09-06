@@ -38,9 +38,11 @@ LFLAGS_END =
 
 ASFLAGS =
 
+PLATFORM_DIR = ../platform/barebones_riscv
+
 PORT_SRCS = $(PORT_DIR)/core_portme.c \
             $(PORT_DIR)/ee_printf.c \
-            $(PORT_DIR)/crt0.S
+            $(PLATFORM_DIR)/crt0.S
 
 PORT_OBJS = core_portme.o ee_printf.o crt0.o
 
@@ -64,7 +66,7 @@ EXE  = .elf
 $(OPATH)%$(OEXT) : %.c
 	$(CC) $(CFLAGS) $(XCFLAGS) $(COUT) $< $(OBJOUT) $@
 
-./crt0.o : barebones_riscv/crt0.S
+./crt0.o : $(PLATFORM_DIR)/crt0.S
 	$(CC) $(CFLAGS) $(XCFLAGS) -c $< -o $@
 
 $(OPATH)$(PORT_DIR)/%$(OEXT) : %.s
