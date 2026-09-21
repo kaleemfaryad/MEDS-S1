@@ -9,6 +9,12 @@ Library code.
 ## How to add something
 One directory per application with its own Makefile. Every benchmark ships a scalar C reference and expected output, or it cannot be a baseline.
 
+## M-07 automation
+The Week 4 parser and CI runner are [`parse_results.py`](parse_results.py) and
+[`run_ci.py`](run_ci.py). They write machine-readable JSON and a Markdown
+result table for CoreMark and Dhrystone. See the [results and automation guide](results-ci/README.md)
+for the workflow and output details.
+
 ## Catalogue projects that land here
 M-07 CoreMark/Dhrystone · M-08 Embench-IoT
 
