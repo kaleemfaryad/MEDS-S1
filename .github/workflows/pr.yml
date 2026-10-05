@@ -118,7 +118,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Restore RISC-V toolchain cache
+        id: riscv-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.riscv
+          key: riscv-m07-bench-ubuntu-latest-toolchain-bca3efed29eaeb1000bd96e9af9d3bc77ff644b4-spike-8fc5ab0357a7cc9a19f79c93b0370103cfe3ce84-rv64imac-lp64
+
+      - name: Add RISC-V tools to PATH
+        run: echo "${{ github.workspace }}/.riscv/bin" >> "$GITHUB_PATH"
+
       - name: Install RISC-V toolchain build dependencies
+        if: steps.riscv-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -154,6 +165,7 @@ jobs:
             libboost-system-dev
 
       - name: Build pinned RISC-V Newlib toolchain
+        if: steps.riscv-cache.outputs.cache-hit != 'true'
         env:
           RISCV: ${{ github.workspace }}/.riscv
         run: |
@@ -171,9 +183,8 @@ jobs:
 
           make -j"$(nproc)"
 
-          echo "$RISCV/bin" >> "$GITHUB_PATH"
-
       - name: Build pinned Spike
+        if: steps.riscv-cache.outputs.cache-hit != 'true'
         env:
           RISCV: ${{ github.workspace }}/.riscv
         run: |
