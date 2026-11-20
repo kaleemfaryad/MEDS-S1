@@ -111,25 +111,56 @@ jobs:
       - name: compare every retired instruction against Spike
         run: make cosim CONFIG=s1_base
 
+
   bench:
     name: benchmarks + regression gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore RISC-V toolchain cache
+      # ------------------------------------------------ GCC / Newlib toolchain
+
+      - name: Restore RISC-V GCC toolchain cache
         id: riscv-cache
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.riscv
-          key: riscv-m07-bench-ubuntu-latest-toolchain-bca3efed29eaeb1000bd96e9af9d3bc77ff644b4-spike-8fc5ab0357a7cc9a19f79c93b0370103cfe3ce84-rv64imac-lp64
+          key: riscv-m07-gcc-16.1.0-binutils-2.46-newlib-4.6.0-ubuntu-24.04-5eba57109b71aa8c62d3b9994da9d8740ae1f53fd0890daf4eb29d1957d95917
 
-      - name: Add RISC-V tools to PATH
-        run: echo "${{ github.workspace }}/.riscv/bin" >> "$GITHUB_PATH"
-
-      - name: Install RISC-V toolchain build dependencies
+      - name: Download and install pinned RISC-V toolchain
         if: steps.riscv-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+
+          ARCHIVE="$RUNNER_TEMP/m07-toolchain-test.tar.xz"
+          URL="https://github.com/kaleemfaryad/MEDS-S1/releases/download/m07-toolchain-gcc-16.1.0-release/m07-toolchain-test.tar.xz"
+
+          curl -fL --retry 3 --retry-all-errors \
+            "$URL" -o "$ARCHIVE"
+
+          echo "5eba57109b71aa8c62d3b9994da9d8740ae1f53fd0890daf4eb29d1957d95917  $ARCHIVE" \
+            | sha256sum --check
+
+          mkdir -p "$RUNNER_TEMP/m07-toolchain-extract"
+          tar -xJf "$ARCHIVE" -C "$RUNNER_TEMP/m07-toolchain-extract"
+
+          test -x "$RUNNER_TEMP/m07-toolchain-extract/riscv/bin/riscv64-unknown-elf-gcc"
+
+          mv "$RUNNER_TEMP/m07-toolchain-extract/riscv" \
+            "$GITHUB_WORKSPACE/.riscv"
+
+      # ------------------------------------------------ Spike (independent cache)
+
+      - name: Restore Spike cache
+        id: spike-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.spike
+          key: spike-m07-1.1.1-dev-8fc5ab0357a7cc9a19f79c93b0370103cfe3ce84-ubuntu-24.04
+
+      - name: Install Spike build dependencies
+        if: steps.spike-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -164,50 +195,59 @@ jobs:
             libboost-regex-dev \
             libboost-system-dev
 
-      - name: Build pinned RISC-V Newlib toolchain
-        if: steps.riscv-cache.outputs.cache-hit != 'true'
-        env:
-          RISCV: ${{ github.workspace }}/.riscv
-        run: |
-          git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git "$RUNNER_TEMP/riscv-gnu-toolchain"
-          cd "$RUNNER_TEMP/riscv-gnu-toolchain"
-
-          git checkout bca3efed29eaeb1000bd96e9af9d3bc77ff644b4
-          git submodule update --init --recursive
-
-          ./configure \
-            --prefix="$RISCV" \
-            --with-arch=rv64imac \
-            --with-abi=lp64 \
-            --enable-multilib
-
-          make -j"$(nproc)"
-
       - name: Build pinned Spike
-        if: steps.riscv-cache.outputs.cache-hit != 'true'
-        env:
-          RISCV: ${{ github.workspace }}/.riscv
+        if: steps.spike-cache.outputs.cache-hit != 'true'
         run: |
-          cd "$RUNNER_TEMP/riscv-gnu-toolchain/spike"
+          set -euo pipefail
+
+          git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git \
+            "$RUNNER_TEMP/riscv-gnu-toolchain"
+
+          cd "$RUNNER_TEMP/riscv-gnu-toolchain"
+          git checkout bca3efed29eaeb1000bd96e9af9d3bc77ff644b4
+
+          git submodule update --init spike
+
+          cd spike
           git checkout 8fc5ab0357a7cc9a19f79c93b0370103cfe3ce84
 
           mkdir build
           cd build
-          ../configure --prefix="$RISCV"
+
+          ../configure --prefix="$GITHUB_WORKSPACE/.spike"
           make -j"$(nproc)"
           make install
 
+      # ------------------------------------------------ PATH and validation
+
+      - name: Add RISC-V tools to PATH
+        run: |
+          echo "$GITHUB_WORKSPACE/.riscv/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/.spike/bin" >> "$GITHUB_PATH"
+
       - name: Verify M-07 tools
         run: |
+          set -euo pipefail
+
           command -v riscv64-unknown-elf-gcc
           command -v riscv64-unknown-elf-as
           command -v spike
+
           riscv64-unknown-elf-gcc --version
           riscv64-unknown-elf-as --version
-          riscv64-unknown-elf-gcc -print-multi-lib
-          spike --help | head -5
 
-      - run: make bench CONFIG=s1_base
+          riscv64-unknown-elf-gcc -print-multi-lib \
+            | tee "$RUNNER_TEMP/multilib.txt"
+
+          grep -Fq 'rv64imac/lp64' "$RUNNER_TEMP/multilib.txt"
+
+          spike --help > "$RUNNER_TEMP/spike-help.txt"
+          head -5 "$RUNNER_TEMP/spike-help.txt"
+
+      # ------------------------------------------------ Benchmarks
+
+      - name: Run benchmarks and regression gate
+        run: make bench CONFIG=s1_base
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -216,6 +256,8 @@ jobs:
           path: |
             build/bench/**
           if-no-files-found: warn
+
+
   # ------------------------------------------------------------------ summary
   gate:
     name: merge gate
