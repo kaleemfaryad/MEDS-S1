@@ -1,5 +1,17 @@
 # Applications and Benchmarks
 
+## What lives here
+Applications and benchmark sources, including `hello`, the frozen benchmark
+suite, and Edge-AI/healthcare reference workloads. Catalogue projects include
+M-07 CoreMark/Dhrystone and M-08 Embench-IoT.
+
+## What does not live here
+Library code.
+
+## How to add an application
+Use one directory per application with its own Makefile. Every benchmark should
+include a scalar C reference and expected output.
+
 Applications and benchmark sources live here. M-07 runs CoreMark and Dhrystone
 2.1; see [`M07.md`](M07.md) for implementation notes.
 
@@ -64,4 +76,4 @@ its build/run and parse calls to `scripts/run_ci.py`, and metric validation to
 output. Keep generated results under `build/bench/`, not in source directories.
 
 ---
-*Conventions: [`docs/guidelines/CODING_STANDARD.md`](../../docs/guidelines/CODING_STANDARD.md)*
+*Conventions: [`docs/guidelines/CODING_STANDARD.md`](../../docs/guidelines/CODING_STANDARD.md) · Definition of done: [`PROJECTS.md`](../../PROJECTS.md)*
