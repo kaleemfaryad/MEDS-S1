@@ -6,9 +6,13 @@ this source directory.
 
 `build/bench/results-history.json` records each run by default. The gate compares
 CoreMark ticks per iteration and Dhrystone cycles per run with the latest
-accepted result for the same configuration. A regression strictly greater than
-3 percent is `blocked`; an exact 3 percent regression passes. A blocked run is
-retained in history but is not used as the next baseline.
+accepted result for the same configuration. These are simulated `mcycle`
+deltas from functional execution under Spike, which is not cycle-accurate;
+they are not actual hardware cycles or hardware performance measurements. A
+regression strictly greater than 3 percent is `blocked`; an exact 3 percent
+regression passes. This comparison detects changes in the Spike-run results,
+not hardware performance. A blocked run is retained in history but is not used
+as the next baseline.
 
 Run both benchmarks and generate the result files from the repository root:
 
@@ -26,8 +30,11 @@ python3 scripts/parse_results.py \
   --format json
 ```
 
-Results use the temporary Spike platform and must not be presented as final
-MEDS-S1 hardware scores.
+`valid: true` means benchmark correctness/output checks passed; it does not
+establish timing accuracy. Do not present CoreMark/MHz or DMIPS/MHz derived from
+these Spike runs as hardware performance. Cycle-accurate performance evaluation
+using Verilator is planned after PR #37, subject to the project's integration
+plan.
 
 To compare an existing result file without running the benchmarks:
 

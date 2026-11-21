@@ -44,8 +44,15 @@ Against accepted history, a slowdown up to and including 3% passes; over 3% is
 `blocked` and returns non-zero. Blocked entries are retained but never become
 future baselines.
 
-These are temporary Spike results, not MEDS-S1 hardware scores. The GitHub
-Actions benchmark job is currently disabled.
+Spike currently provides functional execution and benchmark correctness
+validation. The programs read the RISC-V `mcycle` CSR, but Spike is not
+cycle-accurate: reported counts are simulated `mcycle` deltas, not actual
+hardware cycles or hardware performance scores. `valid: true` indicates that
+correctness/output checks passed, not that timing is accurate. Do not present
+CoreMark/MHz or DMIPS/MHz derived from these Spike runs as hardware performance.
+Cycle-accurate performance evaluation using Verilator is planned after PR #37,
+subject to the project's integration plan. The GitHub Actions benchmark job is
+active and runs this Spike-based harness.
 
 ## Add a benchmark
 
